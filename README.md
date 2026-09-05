@@ -1,46 +1,30 @@
 Weather ETL Pipeline
 
-An end-to-end ETL pipeline that pulls daily weather forecast data for four Indian cities, transforms it into a dimensional model, loads it into PostgreSQL with incremental upserts, and visualizes it through an interactive Streamlit dashboard.
+Automated weather data pipeline — Extract, Transform, Load, orchestrated with Airflow, visualized with Streamlit.
 
-Overview
-Source: Open-Meteo API — free weather forecast API, no key required
-Cities tracked: Delhi, Noida, Paradeep, Bhubaneswar
-Orchestration: Apache Airflow
-Storage: PostgreSQL
-Visualization: Streamlit
+What it does?
 
-Architecture
-Open-Meteo API
-      │
-      ▼
-  Extract (Airflow PythonOperator)
-      │
-      ▼
-  Transform (pandas → star schema)
-      │
-      ▼
-  Load (incremental upsert into PostgreSQL)
-      │
-      ▼
-  Streamlit Dashboard
+This pipeline extracts daily weather forecast data for four Indian cities from the Open-Meteo API, transforms it into a star schema, and loads it into a PostgreSQL database with incremental upserts - this task is automated by Apache Airflow. A Streamlit dashboard then connects to the database to visualize trends.
+
+Tech Stack
+Python,
+Pandas,
+PostgreSQL,
+Apache Airflow,
+XCom for data exchange,
+Star Schema (Data Warehouse),
+Streamlit,
+SQLAlchemy
 Data Model
-
-The pipeline transforms the raw API response into a small star schema:
-
 Fact_table — daily weather metrics (max/min temperature, rainfall, wind speed) per city per date
 Dim_city — city names with latitude/longitude
-Dim_Weather — WMO weather code lookup with human-readable descriptions
-Key Engineering Decisions
+Dim_Weather — WMO weather code lookup with descriptions
+Key Engineering Decision: Incremental Loading
 
-Incremental loading. Open-Meteo returns a rolling 7-day forecast window on every call, meaning consecutive daily runs overlap by several dates. Naively appending each run's data would create duplicate rows for every overlapping date. This pipeline solves that with a delete-then-append upsert: on each run, any existing Fact_table rows falling within the incoming data's date range are deleted first, then the fresh data is appended. This guarantees each (city, date) combination always holds only the most recently fetched forecast — no duplicates, and historical dates outside the current window are preserved.
-
-Dimension tables (Dim_city, Dim_Weather) are small and static, so they're fully replaced (if_exists='replace') on every run rather than upserted.
+Open-Meteo returns a rolling 7-day forecast window on every call, so consecutive daily runs overlap by several dates. Naively appending each run's data would create duplicate rows. This pipeline solves that with a delete-then-append upsert: existing Fact_table rows in the incoming data's date range are deleted, then the fresh data is appended — so each (city, date) always holds only the latest forecast, with no duplicates, and older history preserved.
 
 Dashboard
-
-The Streamlit dashboard connects directly to PostgreSQL and provides:
-
 City filter (multi-select)
-KPI summary (average max temperature, total rainfall, average wind speed)
+KPI summary — average max temperature, total rainfall, average wind speed
 Trend charts for temperature, rainfall, and wind speed by city
 Raw data table
